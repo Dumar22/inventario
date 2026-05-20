@@ -2,15 +2,17 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Que
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.requests import Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, case
 from sqlalchemy.orm import joinedload
 from typing import Optional
 from datetime import datetime, timezone
 import json
+import logging
 
 from app.database import get_db, init_db
+from app.config import get_settings
 from app.models import Activo, RegistroInventario, GrupoHomogeneo, Dependencia, HistorialCambioGrupo
 from app.schemas import (
     ActivoSearch, RegistroInventarioCreate, RegistroInventarioResponse,
@@ -18,6 +20,7 @@ from app.schemas import (
 )
 from app.cloudinary_service import upload_image, delete_image
 
+logger = logging.getLogger(__name__)
 app = FastAPI(title="Inventario Asamblea de Caldas", version="1.0.0")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -73,7 +76,26 @@ def _calcular_accion_requerida(activo: Activo, registro: RegistroInventario) -> 
 
 @app.on_event("startup")
 async def startup():
+    settings = get_settings()
+    db_url = settings.database_url_async
+    # Ocultar credenciales en logs
+    masked_url = db_url.split("@")[1] if "@" in db_url else "N/A"
+    logger.info(f"🚀 App starting with DB: postgresql+asyncpg://...@{masked_url}")
     await init_db()
+
+
+# Debug endpoint - solo para verificar la conexión
+@app.get("/api/health")
+async def health_check(db: AsyncSession = Depends(get_db)):
+    try:
+        await db.execute(select(func.now()))
+        return {"status": "ok", "database": "connected"}
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "database": "disconnected", "error": str(e)}
+        )
 
 
 # ===== PAGINAS HTML =====
@@ -88,21 +110,25 @@ async def index(request: Request):
 # --- Catalogos ---
 @app.get("/api/catalogos", response_model=CatalogosResponse)
 async def get_catalogos(db: AsyncSession = Depends(get_db)):
-    grupos = await db.execute(select(GrupoHomogeneo).order_by(GrupoHomogeneo.nombre))
-    dependencias = await db.execute(select(Dependencia).order_by(Dependencia.nombre))
-    return CatalogosResponse(
-        estados_fisicos=ESTADOS_FISICOS,
-        estados_avance=ESTADOS_AVANCE,
-        acciones=ACCIONES,
-        grupos_homogeneos=[
-            {"id": g.id, "codigo": g.codigo, "nombre": g.nombre}
-            for g in grupos.scalars().all()
-        ],
-        dependencias=[
-            {"id": d.id, "nombre": d.nombre, "responsable": d.responsable}
-            for d in dependencias.scalars().all()
-        ],
-    )
+    try:
+        grupos = await db.execute(select(GrupoHomogeneo).order_by(GrupoHomogeneo.nombre))
+        dependencias = await db.execute(select(Dependencia).order_by(Dependencia.nombre))
+        return CatalogosResponse(
+            estados_fisicos=ESTADOS_FISICOS,
+            estados_avance=ESTADOS_AVANCE,
+            acciones=ACCIONES,
+            grupos_homogeneos=[
+                {"id": g.id, "codigo": g.codigo, "nombre": g.nombre}
+                for g in grupos.scalars().all()
+            ],
+            dependencias=[
+                {"id": d.id, "nombre": d.nombre, "responsable": d.responsable}
+                for d in dependencias.scalars().all()
+            ],
+        )
+    except Exception as e:
+        logger.error(f"Error en /api/catalogos: {type(e).__name__}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 # --- Busqueda / Autocompletado ---
