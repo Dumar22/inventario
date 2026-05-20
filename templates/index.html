@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1a56db">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Inventario - Asamblea de Caldas</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="manifest" href="/static/manifest.json">
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <h1>&#128203; Inventario Bienes</h1>
+    <div class="subtitle">Asamblea Departamental de Caldas - 2026</div>
+  </header>
+
+  <!-- TABS -->
+  <div class="container">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="tab-registro">Registro</button>
+      <button class="tab-btn" data-tab="tab-listado">Listado</button>
+      <button class="tab-btn" data-tab="tab-dashboard">Dashboard</button>
+    </div>
+
+    <!-- ==================== TAB REGISTRO ==================== -->
+    <div id="tab-registro" class="tab-content active">
+
+      <!-- Buscador -->
+      <div class="search-box">
+        <span class="search-icon">&#128269;</span>
+        <input
+          type="text"
+          id="search-input"
+          class="search-input"
+          placeholder="Digita código, placa o nombre del activo..."
+          autocomplete="off"
+        >
+        <div id="autocomplete-list" class="autocomplete-list"></div>
+      </div>
+
+      <!-- Info del activo seleccionado -->
+      <div id="activo-info" class="activo-info">
+        <div class="card">
+          <div class="info-header">
+            <div style="display:flex;justify-content:space-between;align-items:start">
+              <div>
+                <div class="codigo" id="info-codigo"></div>
+                <div class="nombre" id="info-nombre"></div>
+              </div>
+              <span id="info-status" class="badge badge-warning">Pendiente</span>
+            </div>
+          </div>
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="label">Cód. Alterno</div>
+              <div class="value" id="info-alterno">-</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Tipo</div>
+              <div class="value" id="info-tipo">-</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Grupo</div>
+              <div class="value" id="info-grupo">-</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Cuenta Contable</div>
+              <div class="value" id="info-cuenta">-</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Costo Histórico</div>
+              <div class="value" id="info-costo">-</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Vida Útil</div>
+              <div class="value" id="info-vida-util">-</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Ubicación</div>
+              <div class="value" id="info-ubicacion">-</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Proveedor</div>
+              <div class="value" id="info-proveedor">-</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Formulario de registro -->
+        <form id="form-registro" onsubmit="event.preventDefault(); guardarRegistro();">
+
+          <!-- Verificación física -->
+          <div class="card">
+            <div class="card-header">&#9989; Verificación Física</div>
+            <div class="card-body">
+              <div class="form-group">
+                <label for="estado_fisico">Estado Físico</label>
+                <select id="estado_fisico" class="form-control">
+                  <option value="">-- Seleccionar --</option>
+                </select>
+              </div>
+
+              <div class="form-check">
+                <input type="checkbox" id="existe_fisicamente">
+                <label for="existe_fisicamente">Existe físicamente</label>
+              </div>
+              <div class="form-check">
+                <input type="checkbox" id="registro_modulo_bienes">
+                <label for="registro_modulo_bienes">Registro en Módulo de Bienes</label>
+              </div>
+              <div class="form-check">
+                <input type="checkbox" id="registro_contabilidad">
+                <label for="registro_contabilidad">Registro en Contabilidad (MEKANO)</label>
+              </div>
+
+              <div class="form-row" style="margin-top:12px">
+                <div class="form-group">
+                  <label for="custodio_responsable">Custodio Responsable</label>
+                  <input type="text" id="custodio_responsable" class="form-control" placeholder="Nombre del custodio">
+                </div>
+                <div class="form-group">
+                  <label for="ubicacion_verificada">Ubicación Verificada</label>
+                  <input type="text" id="ubicacion_verificada" class="form-control" placeholder="Piso/Oficina">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Costos y Vida Útil -->
+          <div class="card">
+            <div class="card-header">&#128176; Costo y Vida Útil</div>
+            <div class="card-body">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="costo_verificado">Costo Verificado ($)</label>
+                  <input type="number" id="costo_verificado" class="form-control" step="0.01" placeholder="Valor del bien">
+                </div>
+                <div class="form-group">
+                  <label for="vida_util_verificada">Vida Útil (meses)</label>
+                  <input type="number" id="vida_util_verificada" class="form-control" placeholder="Meses">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Soporte fotográfico -->
+          <div class="card">
+            <div class="card-header">&#128247; Soporte Fotográfico</div>
+            <div class="card-body photo-section">
+              <div id="photo-preview" class="photo-preview">
+                <div class="placeholder">
+                  <span class="icon">&#128247;</span>
+                  Toca para tomar foto<br>o seleccionar imagen
+                </div>
+              </div>
+              <input type="file" id="foto-input" accept="image/*" style="display:none">
+              <div class="photo-actions">
+                <button type="button" class="btn btn-outline btn-sm" onclick="tomarFotoBtn()">&#128248; Cámara</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="seleccionarFotoBtn()">&#128193; Galería</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Clasificación y Conciliación -->
+          <div class="card">
+            <div class="card-header">&#128202; Clasificación y Conciliación</div>
+            <div class="card-body">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="clasificacion_diferencia">Clasificación Diferencia</label>
+                  <select id="clasificacion_diferencia" class="form-control">
+                    <option value="">-- Seleccionar --</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="accion_requerida">Acción Requerida</label>
+                  <select id="accion_requerida" class="form-control">
+                    <option value="">-- Seleccionar --</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="resultado_conciliacion">Resultado de Conciliación</label>
+                <input type="text" id="resultado_conciliacion" class="form-control" placeholder="Resultado...">
+              </div>
+            </div>
+          </div>
+
+          <!-- Estado y observaciones -->
+          <div class="card">
+            <div class="card-header">&#128221; Estado y Observaciones</div>
+            <div class="card-body">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="estado_avance">Estado de Avance</label>
+                  <select id="estado_avance" class="form-control">
+                    <option value="">-- Seleccionar --</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="verificado_por">Verificado por</label>
+                  <input type="text" id="verificado_por" class="form-control" placeholder="Nombre del verificador">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="observaciones">Observaciones</label>
+                <textarea id="observaciones" class="form-control" placeholder="Observaciones adicionales..."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Botones -->
+          <div style="display:flex;gap:12px;margin-bottom:24px">
+            <button type="submit" class="btn btn-success btn-block" style="flex:2">
+              &#128190; Guardar Registro
+            </button>
+            <button type="button" class="btn btn-outline btn-block" style="flex:1" onclick="nuevoRegistro()">
+              &#10133; Nuevo
+            </button>
+          </div>
+
+        </form>
+      </div>
+
+      <!-- Estado inicial sin activo seleccionado -->
+      <div id="empty-registro" class="empty-state">
+        <div class="icon">&#128270;</div>
+        <p>Digita el código del activo arriba para comenzar el registro de inventario</p>
+      </div>
+
+    </div>
+
+    <!-- ==================== TAB LISTADO ==================== -->
+    <div id="tab-listado" class="tab-content">
+
+      <!-- Filtros -->
+      <div class="card">
+        <div class="card-header">&#128269; Filtros</div>
+        <div class="card-body" style="padding:10px 16px">
+          <div class="filtros-grid">
+            <div class="form-group" style="margin-bottom:0">
+              <input type="text" id="filtro_buscar" class="form-control" placeholder="Buscar código o nombre..." onkeyup="filtroListadoDebounce()" style="font-size:0.85rem">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <select id="filtro_grupo" class="form-control" onchange="cargarListado(1)" style="font-size:0.85rem">
+                <option value="">Todos los grupos</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <select id="filtro_estado" class="form-control" onchange="cargarListado(1)" style="font-size:0.85rem">
+                <option value="">Todos los estados</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <select id="filtro_avance" class="form-control" onchange="cargarListado(1)" style="font-size:0.85rem">
+                <option value="">Todo avance</option>
+              </select>
+            </div>
+            <div class="form-check" style="padding:0;align-self:center">
+              <input type="checkbox" id="filtro_pendientes" onchange="cargarListado(1)">
+              <label for="filtro_pendientes" style="font-size:0.82rem">Solo pendientes</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla -->
+      <div class="card" style="overflow:hidden">
+        <div class="table-wrapper">
+          <table class="data-table" id="tabla-listado">
+            <thead>
+              <tr>
+                <th class="th-sticky">Código</th>
+                <th>Descripción</th>
+                <th>Grupo</th>
+                <th>Costo</th>
+                <th>V.Útil</th>
+                <th>Estado Físico</th>
+                <th>Avance</th>
+                <th>Custodio</th>
+                <th>Ubicación</th>
+                <th>Foto</th>
+              </tr>
+            </thead>
+            <tbody id="listado-tbody">
+              <tr><td colspan="10" class="td-empty">Selecciona la pestaña Listado para cargar datos</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <span id="listado-count" class="table-count">0 registros</span>
+          <div id="listado-pagination" class="pagination"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB DASHBOARD ==================== -->
+    <div id="tab-dashboard" class="tab-content">
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number" id="dash-total">-</div>
+          <div class="stat-label">Total Activos</div>
+        </div>
+        <div class="stat-card highlight">
+          <div class="stat-number" id="dash-inventariados">-</div>
+          <div class="stat-label">Inventariados</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="dash-pendientes">-</div>
+          <div class="stat-label">Pendientes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="dash-porcentaje">-</div>
+          <div class="stat-label">Avance</div>
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div class="card">
+        <div class="card-body">
+          <div style="font-size:0.85rem;font-weight:600;margin-bottom:4px">Progreso General</div>
+          <div class="progress-bar">
+            <div id="progress-fill" class="progress-fill" style="width:0%"></div>
+          </div>
+          <div id="progress-text" style="font-size:0.8rem;color:var(--gray-500);text-align:center"></div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="card">
+        <div class="card-header">&#128202; Por Estado Físico</div>
+        <div class="card-body" id="chart-estados">
+          <div class="empty-state"><p>Sin datos aún</p></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">&#128230; Por Grupo Homogéneo</div>
+        <div class="card-body" id="chart-grupos">
+          <div class="empty-state"><p>Sin datos aún</p></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">&#9201; Por Estado de Avance</div>
+        <div class="card-body" id="chart-avance">
+          <div class="empty-state"><p>Sin datos aún</p></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Loading overlay -->
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="loading-box">
+      <div class="spinner"></div>
+      <div style="margin-top:12px;font-size:0.9rem;color:var(--gray-600)">Cargando...</div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script src="/static/js/app.js"></script>
+
+  <script>
+    // Toggle empty state based on activo selection
+    const observer = new MutationObserver(() => {
+      const info = document.getElementById("activo-info");
+      const empty = document.getElementById("empty-registro");
+      if (info && empty) {
+        empty.style.display = info.classList.contains("show") ? "none" : "block";
+      }
+    });
+    const target = document.getElementById("activo-info");
+    if (target) observer.observe(target, { attributes: true, attributeFilter: ["class"] });
+  </script>
+</body>
+</html>
