@@ -252,11 +252,19 @@ function mostrarInfoActivo() {
 }
 
 function llenarFormulario() {
+  // Cargar grupo actual del activo
+  if (activoActual.grupo_homogeneo_id) {
+    setVal("grupo_actual", activoActual.grupo_homogeneo_id);
+  }
+
+  // Prellenar costo y vida útil del activo (Excel)
+  document.getElementById("costo_verificado").value = activoActual.costo_historico || "";
+  document.getElementById("vida_util_verificada").value = activoActual.vida_util_meses || "";
+
   if (!registroActual) {
-    // Prellenar con datos del activo
-    document.getElementById("costo_verificado").value = activoActual.costo_historico || "";
-    document.getElementById("vida_util_verificada").value = activoActual.vida_util_meses || "";
     limpiarFormularioRegistro();
+    // Limpiar foto preview
+    limpiarFoto();
     return;
   }
 
@@ -276,7 +284,7 @@ function llenarFormulario() {
   // Foto existente
   const preview = document.getElementById("photo-preview");
   if (r.foto_url) {
-    preview.innerHTML = `<img src="${r.foto_url}" alt="Foto del activo">`;
+    mostrarFotoPreview(r.foto_url);
   } else {
     preview.innerHTML = '<div class="placeholder"><span class="icon">&#128247;</span>Toca para tomar foto<br>o seleccionar imagen</div>';
   }
@@ -332,6 +340,40 @@ function seleccionarFotoBtn() {
     fileInput.removeAttribute("capture");
     fileInput.click();
   }
+}
+
+// === FOTOS ===
+function mostrarFotoPreview(url) {
+  const preview = document.getElementById("photo-preview");
+  const btnLimpiar = document.getElementById("btn-limpiar-foto");
+  preview.innerHTML = `<img src="${url}" alt="Preview" style="max-width:100%;max-height:300px;border-radius:var(--radius);">`;
+  if (btnLimpiar) btnLimpiar.style.display = "inline-block";
+}
+
+function limpiarFoto() {
+  const preview = document.getElementById("photo-preview");
+  const fileInput = document.getElementById("foto-input");
+  const btnLimpiar = document.getElementById("btn-limpiar-foto");
+  
+  preview.innerHTML = `
+    <div class="placeholder">
+      <span class="icon">&#128247;</span>
+      Toca para tomar foto<br>o seleccionar imagen
+    </div>
+  `;
+  if (fileInput) fileInput.value = "";
+  if (btnLimpiar) btnLimpiar.style.display = "none";
+}
+
+// === GRUPO ===
+function mostrarSelectorGrupo() {
+  document.getElementById("selector-grupo-nuevo").style.display = "block";
+}
+
+function cancelarCambioGrupo() {
+  document.getElementById("selector-grupo-nuevo").style.display = "none";
+  document.getElementById("grupo_cambio").value = "";
+  document.getElementById("razon_cambio").value = "";
 }
 
 // === SAVE ===

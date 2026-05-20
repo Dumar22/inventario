@@ -148,7 +148,7 @@
           <div class="card">
             <div class="card-header">&#128247; Soporte Fotográfico</div>
             <div class="card-body photo-section">
-              <div id="photo-preview" class="photo-preview">
+              <div id="photo-preview" class="photo-preview" onclick="seleccionarFotoBtn()">
                 <div class="placeholder">
                   <span class="icon">&#128247;</span>
                   Toca para tomar foto<br>o seleccionar imagen
@@ -158,6 +158,7 @@
               <div class="photo-actions">
                 <button type="button" class="btn btn-outline btn-sm" onclick="tomarFotoBtn()">&#128248; Cámara</button>
                 <button type="button" class="btn btn-outline btn-sm" onclick="seleccionarFotoBtn()">&#128193; Galería</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="limpiarFoto()" id="btn-limpiar-foto" style="display:none;color:var(--danger)">✕ Quitar Foto</button>
               </div>
             </div>
           </div>
@@ -168,19 +169,36 @@
             <div class="card-body">
               <div class="form-row">
                 <div class="form-group">
-                  <label for="grupo_cambio">Cambiar Grupo Homogéneo</label>
+                  <label for="grupo_actual">Grupo Actual</label>
                   <div style="display:flex;gap:8px">
-                    <select id="grupo_cambio" class="form-control">
-                      <option value="">-- Seleccionar --</option>
+                    <select id="grupo_actual" class="form-control" style="background-color:var(--gray-100)">
+                      <option value="">-- Cargando --</option>
                     </select>
-                    <button type="button" class="btn btn-outline btn-sm" onclick="cambiarGrupo()" style="white-space:nowrap">Cambiar</button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="mostrarSelectorGrupo()" id="btn-cambiar-grupo">✎ Cambiar</button>
                   </div>
                 </div>
               </div>
-              <div class="form-group">
-                <label for="razon_cambio">Razón del cambio (opcional)</label>
-                <input type="text" id="razon_cambio" class="form-control" placeholder="Ej: Reclasificación después de revisión...">
+
+              <!-- Selector de nuevo grupo (oculto hasta hacer click) -->
+              <div id="selector-grupo-nuevo" style="display:none;margin-top:12px;padding:12px;background:var(--gray-50);border-radius:var(--radius);border-left:4px solid var(--warning)">
+                <div class="form-group">
+                  <label for="grupo_cambio">Seleccionar Nuevo Grupo</label>
+                  <select id="grupo_cambio" class="form-control">
+                    <option value="">-- Seleccionar --</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="razon_cambio">Razón del cambio</label>
+                  <input type="text" id="razon_cambio" class="form-control" placeholder="Ej: Reclasificación después de revisión...">
+                </div>
+                <div style="display:flex;gap:8px">
+                  <button type="button" class="btn btn-warning btn-sm" onclick="cambiarGrupo()">✓ Confirmar Cambio</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="cancelarCambioGrupo()">✕ Cancelar</button>
+                </div>
               </div>
+
+              <hr style="margin:12px 0;border:none;border-top:1px solid var(--gray-200)">
+
               <div class="form-row">
                 <div class="form-group">
                   <label for="accion_requerida">Acción Requerida</label>
