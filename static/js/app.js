@@ -374,10 +374,16 @@ async function guardarRegistro() {
 
     registroActual = await res.json();
     mostrarInfoActivo();
-    toast("Registro guardado correctamente", "success");
+    toast("✅ Registro guardado", "success");
 
     // Limpiar file input
     if (fileInput) fileInput.value = "";
+
+    // Auto-limpiar en 2 segundos y permitir siguiente registro
+    setTimeout(() => {
+      nuevoRegistro();
+      toast("💡 Selecciona otro código para continuar", "info");
+    }, 2000);
   } catch (e) {
     toast(e.message || "Error al guardar registro", "error");
   } finally {
@@ -397,7 +403,17 @@ function nuevoRegistro() {
 }
 
 // === DASHBOARD ===
+let dashboardPollingInterval = null;
+
 async function cargarDashboard() {
+  await actualizarDashboard();
+  
+  // Polling: actualizar cada 5 segundos
+  if (dashboardPollingInterval) clearInterval(dashboardPollingInterval);
+  dashboardPollingInterval = setInterval(actualizarDashboard, 5000);
+}
+
+async function actualizarDashboard() {
   try {
     const res = await fetch(`${API}/api/dashboard`);
     const data = await res.json();
@@ -416,8 +432,39 @@ async function cargarDashboard() {
     renderBarChart("chart-estados", data.por_estado_fisico, data.inventariados);
     renderBarChart("chart-grupos", data.por_grupo, data.total_activos);
     renderBarChart("chart-avance", data.por_estado_avance, data.inventariados);
+
+    // Cargar estadísticas por usuario
+    await cargarEstadisticasUsuarios();
   } catch (e) {
     console.error("Error dashboard:", e);
+  }
+}
+
+async function cargarEstadisticasUsuarios() {
+  try {
+    const res = await fetch(`${API}/api/dashboard/por-usuario`);
+    if (!res.ok) return;
+    
+    const usuarios = await res.json();
+    const tbody = document.getElementById("usuarios-tbody");
+    if (!tbody) return;
+
+    if (usuarios.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" class="td-empty">Sin registros aún</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = usuarios
+      .map((u, i) => `
+        <tr>
+          <td>${i + 1}.</td>
+          <td><strong>${u.verificado_por || "Sin nombre"}</strong></td>
+          <td class="td-right"><span class="badge badge-success">${u.cantidad}✓</span></td>
+        </tr>
+      `)
+      .join("");
+  } catch (e) {
+    console.error("Error cargando usuarios:", e);
   }
 }
 

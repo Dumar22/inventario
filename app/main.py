@@ -415,6 +415,24 @@ async def get_dashboard(db: AsyncSession = Depends(get_db)):
     )
 
 
+# --- Estadísticas por usuario (verificador) ---
+@app.get("/api/dashboard/por-usuario")
+async def get_usuarios_estadisticas(db: AsyncSession = Depends(get_db)):
+    """Retorna cantidad de registros completados por cada verificador."""
+    stmt = (
+        select(RegistroInventario.verificado_por, func.count(RegistroInventario.id))
+        .where(RegistroInventario.verificado_por.isnot(None))
+        .group_by(RegistroInventario.verificado_por)
+        .order_by(func.count(RegistroInventario.id).desc())
+    )
+    result = await db.execute(stmt)
+    usuarios = [
+        {"verificado_por": row[0], "cantidad": row[1]}
+        for row in result.all()
+    ]
+    return usuarios
+
+
 # --- Listado paginado ---
 @app.get("/api/activos")
 async def listar_activos(

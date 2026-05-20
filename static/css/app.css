@@ -728,6 +728,14 @@ textarea.form-control {
 .td-costo {
     text-align: right;
     font-family: "SF Mono", "Fira Code", monospace;
+    font-weight: 500;
+}
+.th-right {
+    text-align: right !important;
+}
+.td-right {
+    text-align: right !important;
+}
     font-size: 0.78rem;
 }
 .td-foto img {
