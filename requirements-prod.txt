@@ -1,0 +1,20 @@
+# ============================================================================
+# Render Production Requirements - Tested & Verified Wheels Only
+# ============================================================================
+# Solo versiones con pre-built wheels (sin compilación desde fuente)
+# ============================================================================
+
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+sqlalchemy[asyncio]==2.0.23
+asyncpg==0.29.0
+psycopg2-binary==2.9.9
+alembic==1.12.1
+python-multipart==0.0.20
+cloudinary==1.42.0
+openpyxl==3.1.2
+xlrd==2.0.2
+python-dotenv==1.0.1
+jinja2==3.1.2
+pydantic==2.4.2
+pydantic-settings==2.1.0
