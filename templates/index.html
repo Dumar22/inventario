@@ -14,8 +14,13 @@
 
   <!-- HEADER -->
   <header class="app-header">
-    <h1>&#128203; Inventario Bienes</h1>
-    <div class="subtitle">Asamblea Departamental de Caldas - 2026</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+      <div>
+        <h1>&#128203; Inventario Bienes</h1>
+        <div class="subtitle">Asamblea Departamental de Caldas - 2026</div>
+      </div>
+      <button class="btn btn-primary" id="btn-nuevo-elemento" title="Agregar nuevo elemento" style="margin:0;padding:8px 16px;font-size:0.9rem">&#10133; Nuevo Elemento</button>
+    </div>
   </header>
 
   <!-- TABS -->
@@ -106,15 +111,7 @@
 
               <div class="form-check">
                 <input type="checkbox" id="existe_fisicamente">
-                <label for="existe_fisicamente">Existe físicamente</label>
-              </div>
-              <div class="form-check">
-                <input type="checkbox" id="registro_modulo_bienes">
-                <label for="registro_modulo_bienes">Registro en Módulo de Bienes</label>
-              </div>
-              <div class="form-check">
-                <input type="checkbox" id="registro_contabilidad">
-                <label for="registro_contabilidad">Registro en Contabilidad (MEKANO)</label>
+                <label for="existe_fisicamente">&#10003; Existe físicamente</label>
               </div>
 
               <div class="form-row" style="margin-top:12px">
@@ -165,27 +162,36 @@
             </div>
           </div>
 
-          <!-- Clasificación y Conciliación -->
+          <!-- Acciones y cambio de grupo -->
           <div class="card">
-            <div class="card-header">&#128202; Clasificación y Conciliación</div>
+            <div class="card-header">&#128225; Cambio de Grupo y Acciones</div>
             <div class="card-body">
               <div class="form-row">
                 <div class="form-group">
-                  <label for="clasificacion_diferencia">Clasificación Diferencia</label>
-                  <select id="clasificacion_diferencia" class="form-control">
-                    <option value="">-- Seleccionar --</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label for="accion_requerida">Acción Requerida</label>
-                  <select id="accion_requerida" class="form-control">
-                    <option value="">-- Seleccionar --</option>
-                  </select>
+                  <label for="grupo_cambio">Cambiar Grupo Homogéneo</label>
+                  <div style="display:flex;gap:8px">
+                    <select id="grupo_cambio" class="form-control">
+                      <option value="">-- Seleccionar --</option>
+                    </select>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="cambiarGrupo()" style="white-space:nowrap">Cambiar</button>
+                  </div>
                 </div>
               </div>
               <div class="form-group">
-                <label for="resultado_conciliacion">Resultado de Conciliación</label>
-                <input type="text" id="resultado_conciliacion" class="form-control" placeholder="Resultado...">
+                <label for="razon_cambio">Razón del cambio (opcional)</label>
+                <input type="text" id="razon_cambio" class="form-control" placeholder="Ej: Reclasificación después de revisión...">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="accion_requerida">Acción Requerida</label>
+                  <select id="accion_requerida" class="form-control">
+                    <option value="">-- Se genera automáticamente --</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="motivo_accion">Motivo</label>
+                  <textarea id="motivo_accion" class="form-control" rows="2" readonly placeholder="Se genera automáticamente..."></textarea>
+                </div>
               </div>
             </div>
           </div>

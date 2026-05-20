@@ -16,6 +16,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   initSearch();
   initPhotoCapture();
   cargarDashboard();
+  
+  // Boton nuevo elemento
+  const btnNuevo = document.getElementById("btn-nuevo-elemento");
+  if (btnNuevo) {
+    btnNuevo.addEventListener("click", nuevoElementoInventario);
+  }
 });
 
 // === CATALOGOS ===
@@ -50,17 +56,19 @@ function poblarSelects() {
 
   const acc = document.getElementById("accion_requerida");
   if (acc) {
-    acc.innerHTML = '<option value="">-- Seleccionar --</option>';
+    acc.innerHTML = '<option value="">-- Se genera automaticamente --</option>';
     catalogos.acciones.forEach((a) => {
       acc.innerHTML += `<option value="${a}">${a}</option>`;
     });
+    acc.disabled = true;
   }
 
-  const cd = document.getElementById("clasificacion_diferencia");
-  if (cd) {
-    cd.innerHTML = '<option value="">-- Seleccionar --</option>';
-    catalogos.clasificaciones_diferencia.forEach((c) => {
-      cd.innerHTML += `<option value="${c}">${c}</option>`;
+  // Selector para cambiar grupo
+  const gc = document.getElementById("grupo_cambio");
+  if (gc && catalogos.grupos_homogeneos) {
+    gc.innerHTML = '<option value="">-- Seleccionar --</option>';
+    catalogos.grupos_homogeneos.forEach((g) => {
+      gc.innerHTML += `<option value="${g.id}">${g.nombre}</option>`;
     });
   }
 
@@ -255,15 +263,12 @@ function llenarFormulario() {
   const r = registroActual;
   setVal("estado_fisico", r.estado_fisico);
   setChecked("existe_fisicamente", r.existe_fisicamente);
-  setChecked("registro_modulo_bienes", r.registro_modulo_bienes);
-  setChecked("registro_contabilidad", r.registro_contabilidad);
   setVal("costo_verificado", r.costo_verificado || activoActual.costo_historico || "");
   setVal("vida_util_verificada", r.vida_util_verificada || activoActual.vida_util_meses || "");
   setVal("custodio_responsable", r.custodio_responsable);
   setVal("ubicacion_verificada", r.ubicacion_verificada);
-  setVal("clasificacion_diferencia", r.clasificacion_diferencia);
-  setVal("resultado_conciliacion", r.resultado_conciliacion);
   setVal("accion_requerida", r.accion_requerida);
+  setVal("motivo_accion", r.motivo_accion);
   setVal("estado_avance", r.estado_avance);
   setVal("observaciones", r.observaciones);
   setVal("verificado_por", r.verificado_por);
@@ -279,14 +284,12 @@ function llenarFormulario() {
 
 function limpiarFormularioRegistro() {
   ["estado_fisico", "custodio_responsable", "ubicacion_verificada",
-   "clasificacion_diferencia", "resultado_conciliacion",
-   "accion_requerida", "observaciones", "verificado_por"
+   "accion_requerida", "motivo_accion", "observaciones", "verificado_por", "razon_cambio"
   ].forEach(id => setVal(id, ""));
 
-  setVal("estado_avance", "No iniciado");
+  setVal("estado_avance", "No verificado");
+  setVal("grupo_cambio", "");
   setChecked("existe_fisicamente", false);
-  setChecked("registro_modulo_bienes", false);
-  setChecked("registro_contabilidad", false);
 
   const preview = document.getElementById("photo-preview");
   if (preview) {
@@ -342,17 +345,14 @@ async function guardarRegistro() {
   form.append("activo_id", activoActual.id);
   form.append("estado_fisico", getVal("estado_fisico"));
   form.append("existe_fisicamente", document.getElementById("existe_fisicamente")?.checked ? "true" : "false");
-  form.append("registro_modulo_bienes", document.getElementById("registro_modulo_bienes")?.checked ? "true" : "false");
-  form.append("registro_contabilidad", document.getElementById("registro_contabilidad")?.checked ? "true" : "false");
 
   const costoVal = getVal("costo_verificado");
   const vuVal = getVal("vida_util_verificada");
   if (costoVal) form.append("costo_verificado", costoVal);
   if (vuVal) form.append("vida_util_verificada", vuVal);
 
-  ["custodio_responsable", "ubicacion_verificada", "clasificacion_diferencia",
-   "resultado_conciliacion", "accion_requerida", "estado_avance",
-   "observaciones", "verificado_por"
+  ["custodio_responsable", "ubicacion_verificada", "accion_requerida", "estado_avance",
+   "observaciones", "verificado_por", "soporte_documental"
   ].forEach(field => {
     const val = getVal(field);
     if (val) form.append(field, val);
@@ -555,6 +555,73 @@ function getVal(id) {
 function setChecked(id, val) {
   const el = document.getElementById(id);
   if (el) el.checked = !!val;
+}
+
+// === CAMBIO DE GRUPO Y ACCIONES ===
+async function cambiarGrupo() {
+  if (!activoActual) {
+    toast("Primero busca y selecciona un activo", "error");
+    return;
+  }
+
+  const grupoId = getVal("grupo_cambio");
+  if (!grupoId) {
+    toast("Selecciona un grupo", "error");
+    return;
+  }
+
+  if (parseInt(grupoId) === activoActual.grupo_homogeneo_id) {
+    toast("El activo ya pertenece a este grupo", "info");
+    return;
+  }
+
+  const razonCambio = getVal("razon_cambio");
+  
+  const form = new FormData();
+  form.append("grupo_homogeneo_id", grupoId);
+  if (razonCambio) form.append("razon_cambio", razonCambio);
+  form.append("modificado_por", getVal("verificado_por") || "Usuario");
+
+  showLoading(true);
+  try {
+    const res = await fetch(`${API}/api/activos/${activoActual.id}/grupo`, {
+      method: "PATCH",
+      body: form
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Error al cambiar grupo");
+    }
+
+    const result = await res.json();
+    
+    // Recargar la informacion del activo
+    const acRes = await fetch(`${API}/api/activos/${activoActual.id}`);
+    const acData = await acRes.json();
+    activoActual = acData.activo;
+    registroActual = acData.registro;
+    
+    mostrarInfoActivo();
+    llenarFormulario();
+    
+    toast(`Grupo cambiado de "${result.grupo_anterior_nombre}" a "${result.grupo_nuevo_nombre}"`, "success");
+    
+    setVal("grupo_cambio", "");
+    setVal("razon_cambio", "");
+  } catch (e) {
+    toast(e.message || "Error al cambiar grupo", "error");
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function nuevoElementoInventario() {
+  const respuesta = prompt("Ingresa el codigo del nuevo activo a crear (se abrira el formulario de inventario):");
+  if (!respuesta) return;
+  
+  toast("Funcionalidad de crear nuevo elemento próximamente disponible", "info");
+  // Aqui iria la lógica para crear un nuevo elemento
+  // Por ahora, solo mostramos un mensaje informativo
 }
 
 function formatNumber(n) {

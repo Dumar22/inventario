@@ -242,17 +242,13 @@ async def crear_o_actualizar_registro(
     activo_id: int = Form(...),
     estado_fisico: Optional[str] = Form(None),
     existe_fisicamente: Optional[str] = Form(None),
-    registro_modulo_bienes: Optional[str] = Form(None),
-    registro_contabilidad: Optional[str] = Form(None),
     costo_verificado: Optional[float] = Form(None),
     vida_util_verificada: Optional[int] = Form(None),
     custodio_responsable: Optional[str] = Form(None),
     ubicacion_verificada: Optional[str] = Form(None),
     soporte_documental: Optional[str] = Form(None),
-    clasificacion_diferencia: Optional[str] = Form(None),
-    resultado_conciliacion: Optional[str] = Form(None),
     accion_requerida: Optional[str] = Form(None),
-    estado_avance: Optional[str] = Form("No iniciado"),
+    estado_avance: Optional[str] = Form("No verificado"),
     observaciones: Optional[str] = Form(None),
     verificado_por: Optional[str] = Form(None),
     foto: Optional[UploadFile] = File(None),
@@ -282,25 +278,21 @@ async def crear_o_actualizar_registro(
         foto_url = img_result["url"]
         foto_public_id = img_result["public_id"]
 
+    existe_fisicamente_bool = parse_bool(existe_fisicamente)
+
     if registro:
         # Actualizar existente
         registro.estado_fisico = estado_fisico or registro.estado_fisico
-        registro.existe_fisicamente = parse_bool(existe_fisicamente) if existe_fisicamente else registro.existe_fisicamente
-        registro.registro_modulo_bienes = parse_bool(registro_modulo_bienes) if registro_modulo_bienes else registro.registro_modulo_bienes
-        registro.registro_contabilidad = parse_bool(registro_contabilidad) if registro_contabilidad else registro.registro_contabilidad
+        registro.existe_fisicamente = existe_fisicamente_bool if existe_fisicamente else registro.existe_fisicamente
         registro.costo_verificado = costo_verificado if costo_verificado is not None else registro.costo_verificado
         registro.vida_util_verificada = vida_util_verificada if vida_util_verificada is not None else registro.vida_util_verificada
         registro.custodio_responsable = custodio_responsable or registro.custodio_responsable
         registro.ubicacion_verificada = ubicacion_verificada or registro.ubicacion_verificada
         registro.soporte_documental = soporte_documental or registro.soporte_documental
-        registro.clasificacion_diferencia = clasificacion_diferencia or registro.clasificacion_diferencia
-        registro.resultado_conciliacion = resultado_conciliacion or registro.resultado_conciliacion
-        registro.accion_requerida = accion_requerida or registro.accion_requerida
-        registro.estado_avance = estado_avance or registro.estado_avance
         registro.observaciones = observaciones or registro.observaciones
         registro.verificado_por = verificado_por or registro.verificado_por
-        registro.fecha_verificacion = datetime.utcnow()
-        registro.updated_at = datetime.utcnow()
+        registro.fecha_verificacion = datetime.now(timezone.utc)
+        registro.updated_at = datetime.now(timezone.utc)
 
         if foto_url:
             # Borrar foto anterior si existia
@@ -308,14 +300,22 @@ async def crear_o_actualizar_registro(
                 delete_image(registro.foto_public_id)
             registro.foto_url = foto_url
             registro.foto_public_id = foto_public_id
+
+        # Calcular acción requerida automática
+        accion_auto, motivo_auto = _calcular_accion_requerida(activo, registro)
+        if accion_auto:
+            registro.accion_requerida = accion_auto
+            registro.motivo_accion = motivo_auto
+        elif accion_requerida:
+            registro.accion_requerida = accion_requerida
+
+        registro.estado_avance = estado_avance or registro.estado_avance
     else:
         # Crear nuevo
         registro = RegistroInventario(
             activo_id=activo_id,
             estado_fisico=estado_fisico,
-            existe_fisicamente=parse_bool(existe_fisicamente),
-            registro_modulo_bienes=parse_bool(registro_modulo_bienes),
-            registro_contabilidad=parse_bool(registro_contabilidad),
+            existe_fisicamente=existe_fisicamente_bool,
             costo_verificado=costo_verificado,
             vida_util_verificada=vida_util_verificada,
             custodio_responsable=custodio_responsable,
@@ -323,14 +323,13 @@ async def crear_o_actualizar_registro(
             foto_url=foto_url,
             foto_public_id=foto_public_id,
             soporte_documental=soporte_documental,
-            clasificacion_diferencia=clasificacion_diferencia,
-            resultado_conciliacion=resultado_conciliacion,
-            accion_requerida=accion_requerida,
-            estado_avance=estado_avance or "No iniciado",
+            estado_avance=estado_avance or "No verificado",
             observaciones=observaciones,
             verificado_por=verificado_por,
-            fecha_verificacion=datetime.utcnow(),
+            fecha_verificacion=datetime.now(timezone.utc),
         )
+        # Calcular acción requerida automática para nuevo registro
+        # NOTA: Los valores iniciales no existirán, así que no habrá diferencias aún
         db.add(registro)
 
     await db.commit()
@@ -471,3 +470,101 @@ async def listar_activos(
         "page": page,
         "pages": (total + size - 1) // size,
     }
+
+
+# --- Cambiar grupo (con trazabilidad) ---
+@app.patch("/api/activos/{activo_id}/grupo")
+async def cambiar_grupo(
+    activo_id: int,
+    grupo_homogeneo_id: int = Form(...),
+    razon_cambio: Optional[str] = Form(None),
+    modificado_por: Optional[str] = Form(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Cambia el grupo de un activo y registra el historial."""
+    activo = await db.get(Activo, activo_id)
+    if not activo:
+        raise HTTPException(status_code=404, detail="Activo no encontrado")
+
+    # Verificar que el nuevo grupo existe
+    nuevo_grupo = await db.get(GrupoHomogeneo, grupo_homogeneo_id)
+    if not nuevo_grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+
+    grupo_anterior_id = activo.grupo_homogeneo_id
+
+    # Si es el mismo grupo, retornar error
+    if grupo_anterior_id == grupo_homogeneo_id:
+        raise HTTPException(status_code=400, detail="El activo ya pertenece a este grupo")
+
+    # Registrar en historial
+    historial = HistorialCambioGrupo(
+        activo_id=activo_id,
+        grupo_anterior_id=grupo_anterior_id,
+        grupo_nuevo_id=grupo_homogeneo_id,
+        razon_cambio=razon_cambio,
+        modificado_por=modificado_por,
+        fecha_cambio=datetime.now(timezone.utc),
+    )
+    db.add(historial)
+
+    # Cambiar el grupo del activo
+    activo.grupo_homogeneo_id = grupo_homogeneo_id
+
+    await db.commit()
+
+    # Retornar el grupo anterior y nuevo
+    grupo_anterior_nombre = None
+    if grupo_anterior_id:
+        g_ant = await db.get(GrupoHomogeneo, grupo_anterior_id)
+        grupo_anterior_nombre = g_ant.nombre if g_ant else None
+
+    return {
+        "exito": True,
+        "activo_id": activo_id,
+        "grupo_anterior_id": grupo_anterior_id,
+        "grupo_anterior_nombre": grupo_anterior_nombre,
+        "grupo_nuevo_id": grupo_homogeneo_id,
+        "grupo_nuevo_nombre": nuevo_grupo.nombre,
+        "razon_cambio": razon_cambio,
+        "fecha_cambio": datetime.now(timezone.utc),
+    }
+
+
+# --- Obtener historial de cambios de grupo ---
+@app.get("/api/activos/{activo_id}/historial-grupo", response_model=list[HistorialCambioGrupoResponse])
+async def obtener_historial_grupo(activo_id: int, db: AsyncSession = Depends(get_db)):
+    """Obtiene el historial de cambios de grupo para un activo."""
+    activo = await db.get(Activo, activo_id)
+    if not activo:
+        raise HTTPException(status_code=404, detail="Activo no encontrado")
+
+    stmt = select(HistorialCambioGrupo).where(
+        HistorialCambioGrupo.activo_id == activo_id
+    ).order_by(HistorialCambioGrupo.fecha_cambio.desc())
+    result = await db.execute(stmt)
+    historial = result.scalars().all()
+
+    response = []
+    for h in historial:
+        grupo_anterior_nombre = None
+        if h.grupo_anterior_id:
+            g_ant = await db.get(GrupoHomogeneo, h.grupo_anterior_id)
+            grupo_anterior_nombre = g_ant.nombre if g_ant else None
+
+        g_nuevo = await db.get(GrupoHomogeneo, h.grupo_nuevo_id)
+        grupo_nuevo_nombre = g_nuevo.nombre if g_nuevo else None
+
+        response.append(HistorialCambioGrupoResponse(
+            id=h.id,
+            activo_id=h.activo_id,
+            grupo_anterior_id=h.grupo_anterior_id,
+            grupo_anterior_nombre=grupo_anterior_nombre,
+            grupo_nuevo_id=h.grupo_nuevo_id,
+            grupo_nuevo_nombre=grupo_nuevo_nombre,
+            razon_cambio=h.razon_cambio,
+            modificado_por=h.modificado_por,
+            fecha_cambio=h.fecha_cambio,
+        ))
+
+    return response
