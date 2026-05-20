@@ -280,87 +280,95 @@ async def crear_o_actualizar_registro(
     foto: Optional[UploadFile] = File(None),
     db: AsyncSession = Depends(get_db),
 ):
-    # Verificar que existe el activo
-    activo = await db.get(Activo, activo_id)
-    if not activo:
-        raise HTTPException(status_code=404, detail="Activo no encontrado")
+    try:
+        # Verificar que existe el activo
+        activo = await db.get(Activo, activo_id)
+        if not activo:
+            raise HTTPException(status_code=404, detail="Activo no encontrado")
 
-    # Buscar registro existente
-    stmt = select(RegistroInventario).where(RegistroInventario.activo_id == activo_id)
-    result = await db.execute(stmt)
-    registro = result.scalar_one_or_none()
+        # Buscar registro existente
+        stmt = select(RegistroInventario).where(RegistroInventario.activo_id == activo_id)
+        result = await db.execute(stmt)
+        registro = result.scalar_one_or_none()
 
-    # Convertir strings a bool
-    def parse_bool(val):
-        if val is None or val == "":
-            return None
-        return val.lower() in ("true", "1", "si", "sí", "yes")
+        # Convertir strings a bool
+        def parse_bool(val):
+            if val is None or val == "":
+                return None
+            return val.lower() in ("true", "1", "si", "sí", "yes")
 
-    # Subir foto si viene
-    foto_url = None
-    foto_public_id = None
-    if foto and foto.filename:
-        img_result = await upload_image(foto, folder=f"inventario_asamblea/{activo.codigo}")
-        foto_url = img_result["url"]
-        foto_public_id = img_result["public_id"]
+        # Subir foto si viene
+        foto_url = None
+        foto_public_id = None
+        if foto and foto.filename:
+            img_result = await upload_image(foto, folder=f"inventario_asamblea/{activo.codigo}")
+            foto_url = img_result["url"]
+            foto_public_id = img_result["public_id"]
 
-    existe_fisicamente_bool = parse_bool(existe_fisicamente)
+        existe_fisicamente_bool = parse_bool(existe_fisicamente)
 
-    if registro:
-        # Actualizar existente
-        registro.estado_fisico = estado_fisico or registro.estado_fisico
-        registro.existe_fisicamente = existe_fisicamente_bool if existe_fisicamente else registro.existe_fisicamente
-        registro.costo_verificado = costo_verificado if costo_verificado is not None else registro.costo_verificado
-        registro.vida_util_verificada = vida_util_verificada if vida_util_verificada is not None else registro.vida_util_verificada
-        registro.custodio_responsable = custodio_responsable or registro.custodio_responsable
-        registro.ubicacion_verificada = ubicacion_verificada or registro.ubicacion_verificada
-        registro.soporte_documental = soporte_documental or registro.soporte_documental
-        registro.observaciones = observaciones or registro.observaciones
-        registro.verificado_por = verificado_por or registro.verificado_por
-        registro.fecha_verificacion = datetime.now(timezone.utc)
-        registro.updated_at = datetime.now(timezone.utc)
+        if registro:
+            # Actualizar existente
+            registro.estado_fisico = estado_fisico or registro.estado_fisico
+            registro.existe_fisicamente = existe_fisicamente_bool if existe_fisicamente else registro.existe_fisicamente
+            registro.costo_verificado = costo_verificado if costo_verificado is not None else registro.costo_verificado
+            registro.vida_util_verificada = vida_util_verificada if vida_util_verificada is not None else registro.vida_util_verificada
+            registro.custodio_responsable = custodio_responsable or registro.custodio_responsable
+            registro.ubicacion_verificada = ubicacion_verificada or registro.ubicacion_verificada
+            registro.soporte_documental = soporte_documental or registro.soporte_documental
+            registro.observaciones = observaciones or registro.observaciones
+            registro.verificado_por = verificado_por or registro.verificado_por
+            registro.fecha_verificacion = datetime.now(timezone.utc)
+            registro.updated_at = datetime.now(timezone.utc)
 
-        if foto_url:
-            # Borrar foto anterior si existia
-            if registro.foto_public_id:
-                delete_image(registro.foto_public_id)
-            registro.foto_url = foto_url
-            registro.foto_public_id = foto_public_id
+            if foto_url:
+                # Borrar foto anterior si existia
+                if registro.foto_public_id:
+                    delete_image(registro.foto_public_id)
+                registro.foto_url = foto_url
+                registro.foto_public_id = foto_public_id
 
-        # Calcular acción requerida automática
-        accion_auto, motivo_auto = _calcular_accion_requerida(activo, registro)
-        if accion_auto:
-            registro.accion_requerida = accion_auto
-            registro.motivo_accion = motivo_auto
-        elif accion_requerida:
-            registro.accion_requerida = accion_requerida
+            # Calcular acción requerida automática
+            accion_auto, motivo_auto = _calcular_accion_requerida(activo, registro)
+            if accion_auto:
+                registro.accion_requerida = accion_auto
+                registro.motivo_accion = motivo_auto
+            elif accion_requerida:
+                registro.accion_requerida = accion_requerida
 
-        registro.estado_avance = estado_avance or registro.estado_avance
-    else:
-        # Crear nuevo
-        registro = RegistroInventario(
-            activo_id=activo_id,
-            estado_fisico=estado_fisico,
-            existe_fisicamente=existe_fisicamente_bool,
-            costo_verificado=costo_verificado,
-            vida_util_verificada=vida_util_verificada,
-            custodio_responsable=custodio_responsable,
-            ubicacion_verificada=ubicacion_verificada,
-            foto_url=foto_url,
-            foto_public_id=foto_public_id,
-            soporte_documental=soporte_documental,
-            estado_avance=estado_avance or "No verificado",
-            observaciones=observaciones,
-            verificado_por=verificado_por,
-            fecha_verificacion=datetime.now(timezone.utc),
-        )
-        # Calcular acción requerida automática para nuevo registro
-        # NOTA: Los valores iniciales no existirán, así que no habrá diferencias aún
-        db.add(registro)
+            registro.estado_avance = estado_avance or registro.estado_avance
+        else:
+            # Crear nuevo
+            registro = RegistroInventario(
+                activo_id=activo_id,
+                estado_fisico=estado_fisico,
+                existe_fisicamente=existe_fisicamente_bool,
+                costo_verificado=costo_verificado,
+                vida_util_verificada=vida_util_verificada,
+                custodio_responsable=custodio_responsable,
+                ubicacion_verificada=ubicacion_verificada,
+                foto_url=foto_url,
+                foto_public_id=foto_public_id,
+                soporte_documental=soporte_documental,
+                estado_avance=estado_avance or "No verificado",
+                observaciones=observaciones,
+                verificado_por=verificado_por,
+                fecha_verificacion=datetime.now(timezone.utc),
+            )
+            # Calcular acción requerida automática para nuevo registro
+            # NOTA: Los valores iniciales no existirán, así que no habrá diferencias aún
+            db.add(registro)
 
-    await db.commit()
-    await db.refresh(registro)
-    return RegistroInventarioResponse.model_validate(registro)
+        await db.commit()
+        await db.refresh(registro)
+        return RegistroInventarioResponse.model_validate(registro)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error en /api/registros: {type(e).__name__}: {str(e)}")
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al guardar registro: {str(e)}")
 
 
 # --- Dashboard / Estadisticas ---
@@ -526,53 +534,61 @@ async def cambiar_grupo(
     db: AsyncSession = Depends(get_db),
 ):
     """Cambia el grupo de un activo y registra el historial."""
-    activo = await db.get(Activo, activo_id)
-    if not activo:
-        raise HTTPException(status_code=404, detail="Activo no encontrado")
+    try:
+        activo = await db.get(Activo, activo_id)
+        if not activo:
+            raise HTTPException(status_code=404, detail="Activo no encontrado")
 
-    # Verificar que el nuevo grupo existe
-    nuevo_grupo = await db.get(GrupoHomogeneo, grupo_homogeneo_id)
-    if not nuevo_grupo:
-        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+        # Verificar que el nuevo grupo existe
+        nuevo_grupo = await db.get(GrupoHomogeneo, grupo_homogeneo_id)
+        if not nuevo_grupo:
+            raise HTTPException(status_code=404, detail="Grupo no encontrado")
 
-    grupo_anterior_id = activo.grupo_homogeneo_id
+        grupo_anterior_id = activo.grupo_homogeneo_id
 
-    # Si es el mismo grupo, retornar error
-    if grupo_anterior_id == grupo_homogeneo_id:
-        raise HTTPException(status_code=400, detail="El activo ya pertenece a este grupo")
+        # Si es el mismo grupo, retornar error
+        if grupo_anterior_id == grupo_homogeneo_id:
+            raise HTTPException(status_code=400, detail="El activo ya pertenece a este grupo")
 
-    # Registrar en historial
-    historial = HistorialCambioGrupo(
-        activo_id=activo_id,
-        grupo_anterior_id=grupo_anterior_id,
-        grupo_nuevo_id=grupo_homogeneo_id,
-        razon_cambio=razon_cambio,
-        modificado_por=modificado_por,
-        fecha_cambio=datetime.now(timezone.utc),
-    )
-    db.add(historial)
+        # Registrar en historial
+        historial = HistorialCambioGrupo(
+            activo_id=activo_id,
+            grupo_anterior_id=grupo_anterior_id,
+            grupo_nuevo_id=grupo_homogeneo_id,
+            razon_cambio=razon_cambio,
+            modificado_por=modificado_por,
+            fecha_cambio=datetime.now(timezone.utc),
+        )
+        db.add(historial)
 
-    # Cambiar el grupo del activo
-    activo.grupo_homogeneo_id = grupo_homogeneo_id
+        # Cambiar el grupo del activo
+        activo.grupo_homogeneo_id = grupo_homogeneo_id
 
-    await db.commit()
+        await db.commit()
 
-    # Retornar el grupo anterior y nuevo
-    grupo_anterior_nombre = None
-    if grupo_anterior_id:
-        g_ant = await db.get(GrupoHomogeneo, grupo_anterior_id)
-        grupo_anterior_nombre = g_ant.nombre if g_ant else None
+        # Retornar el grupo anterior y nuevo
+        grupo_anterior_nombre = None
+        if grupo_anterior_id:
+            g_ant = await db.get(GrupoHomogeneo, grupo_anterior_id)
+            grupo_anterior_nombre = g_ant.nombre if g_ant else None
 
-    return {
-        "exito": True,
-        "activo_id": activo_id,
-        "grupo_anterior_id": grupo_anterior_id,
-        "grupo_anterior_nombre": grupo_anterior_nombre,
-        "grupo_nuevo_id": grupo_homogeneo_id,
-        "grupo_nuevo_nombre": nuevo_grupo.nombre,
-        "razon_cambio": razon_cambio,
-        "fecha_cambio": datetime.now(timezone.utc),
-    }
+        return {
+            "exito": True,
+            "activo_id": activo_id,
+            "grupo_anterior_id": grupo_anterior_id,
+            "grupo_anterior_nombre": grupo_anterior_nombre,
+            "grupo_nuevo_id": grupo_homogeneo_id,
+            "grupo_nuevo_nombre": nuevo_grupo.nombre,
+            "razon_cambio": razon_cambio,
+            "fecha_cambio": datetime.now(timezone.utc),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error en cambiar_grupo: {type(e).__name__}: {str(e)}")
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al cambiar grupo: {str(e)}")
 
 
 # --- Obtener historial de cambios de grupo ---

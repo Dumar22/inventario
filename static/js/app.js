@@ -394,7 +394,10 @@ async function guardarRegistro() {
 
   const form = new FormData();
   form.append("activo_id", activoActual.id);
-  form.append("estado_fisico", getVal("estado_fisico"));
+  
+  const estadoFisico = getVal("estado_fisico");
+  if (estadoFisico) form.append("estado_fisico", estadoFisico);
+  
   form.append("existe_fisicamente", document.getElementById("existe_fisicamente")?.checked ? "true" : "false");
 
   const costoVal = getVal("costo_verificado");
@@ -419,8 +422,8 @@ async function guardarRegistro() {
   try {
     const res = await fetch(`${API}/api/registros`, { method: "POST", body: form });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "Error al guardar");
+      const errMsg = await safeJsonError(res);
+      throw new Error(errMsg);
     }
 
     registroActual = await res.json();
@@ -640,6 +643,16 @@ function irAActivo(id) {
 }
 
 // === UTILITIES ===
+async function safeJsonError(res) {
+  try {
+    const data = await res.json();
+    return data.detail || JSON.stringify(data);
+  } catch {
+    const text = await res.text();
+    return `Error del servidor (${res.status}): ${text.substring(0, 150)}`;
+  }
+}
+
 function setVal(id, val) {
   const el = document.getElementById(id);
   if (el) el.value = val || "";
@@ -687,8 +700,8 @@ async function cambiarGrupo() {
       body: form
     });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "Error al cambiar grupo");
+      const errMsg = await safeJsonError(res);
+      throw new Error(errMsg);
     }
 
     const result = await res.json();
