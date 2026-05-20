@@ -6,12 +6,13 @@ import os
 class Settings(BaseSettings):
     # En producción (Render): usa DATABASE_URL_PROD
     # En desarrollo: usa DATABASE_URL
-    database_url: str = ""
-
-    # Cloudinary
-    cloudinary_cloud_name: str = ""
-    cloudinary_api_key: str = ""
-    cloudinary_api_secret: str = ""
+    @property
+    def database_url_async(self) -> str:
+        """Convierte postgresql:// en postgresql+asyncpg:// para SQLAlchemy asyncio."""
+        url = self.database_url
+        if url and url.startswith("postgresql://") and "+asyncpg" not in url:
+            return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url
 
     class Config:
         env_file = ".env"
