@@ -318,8 +318,8 @@ async def crear_o_actualizar_registro(
             registro.soporte_documental = soporte_documental or registro.soporte_documental
             registro.observaciones = observaciones or registro.observaciones
             registro.verificado_por = verificado_por or registro.verificado_por
-            registro.fecha_verificacion = datetime.now(timezone.utc)
-            registro.updated_at = datetime.now(timezone.utc)
+            registro.fecha_verificacion = datetime.now(timezone.utc).replace(tzinfo=None)
+            registro.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
             if foto_url:
                 # Borrar foto anterior si existia
@@ -353,7 +353,7 @@ async def crear_o_actualizar_registro(
                 estado_avance=estado_avance or "No verificado",
                 observaciones=observaciones,
                 verificado_por=verificado_por,
-                fecha_verificacion=datetime.now(timezone.utc),
+                fecha_verificacion=datetime.now(timezone.utc).replace(tzinfo=None),
             )
             # Calcular acción requerida automática para nuevo registro
             # NOTA: Los valores iniciales no existirán, así que no habrá diferencias aún
@@ -557,7 +557,7 @@ async def cambiar_grupo(
             grupo_nuevo_id=grupo_homogeneo_id,
             razon_cambio=razon_cambio,
             modificado_por=modificado_por,
-            fecha_cambio=datetime.now(timezone.utc),
+            fecha_cambio=datetime.now(timezone.utc).replace(tzinfo=None),
         )
         db.add(historial)
 
@@ -580,7 +580,7 @@ async def cambiar_grupo(
             "grupo_nuevo_id": grupo_homogeneo_id,
             "grupo_nuevo_nombre": nuevo_grupo.nombre,
             "razon_cambio": razon_cambio,
-            "fecha_cambio": datetime.now(timezone.utc),
+            "fecha_cambio": datetime.now(timezone.utc).replace(tzinfo=None),
         }
 
     except HTTPException:
