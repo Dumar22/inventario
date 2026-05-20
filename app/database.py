@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import text
 from app.config import get_settings
 import logging
 
@@ -50,7 +51,8 @@ async def init_db():
                 commands = [cmd.strip() for cmd in sql_content.split(";") if cmd.strip() and not cmd.strip().startswith("--")]
                 for cmd in commands:
                     try:
-                        await conn.execute(cmd)
+                        # Wrappear con text() para async execution
+                        await conn.execute(text(cmd))
                         logger.debug(f"✓ {cmd[:60]}...")
                     except Exception as e:
                         # Si es "already exists", no es crítico

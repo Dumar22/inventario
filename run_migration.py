@@ -8,6 +8,7 @@ import asyncio
 import sys
 import os
 from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import text
 from app.config import get_settings
 from app.database import Base
 
@@ -41,7 +42,7 @@ async def run_migrations():
                 commands = [cmd.strip() for cmd in sql_content.split(";") if cmd.strip() and not cmd.strip().startswith("--")]
                 for cmd in commands:
                     try:
-                        await conn.execute(cmd)
+                        await conn.execute(text(cmd))
                         print(f"   ✓ {cmd[:60]}...")
                     except Exception as e:
                         if "already exists" not in str(e).lower():
