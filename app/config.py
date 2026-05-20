@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     @property
     def database_url_async(self) -> str:
-        """Convierte postgresql:// en postgresql+asyncpg:// y limpia parámetros incompatibles."""
+        """Convierte postgresql:// en postgresql+asyncpg:// y limpia parámetros incompatibles con asyncpg."""
         url = os.getenv("DATABASE_URL_PROD") or os.getenv("DATABASE_URL") or self.database_url
         if not url:
             return ""
@@ -24,11 +24,22 @@ class Settings(BaseSettings):
         if url.startswith("postgresql://") and "+asyncpg" not in url:
             url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
         
-        # 2. Eliminar sslmode si existe (asyncpg no lo soporta como query param)
+        # 2. Eliminar parámetros de libpq que asyncpg no entiende
+        # asyncpg entiende: timeout, ssl, server_settings
+        # Render agrega: sslmode, channel_binding, statement_cache_size, application_name, etc.
         if "?" in url:
             base, query = url.split("?", 1)
             params = query.split("&")
-            clean_params = [p for p in params if not p.startswith("sslmode=")]
+            # Lista de parámetros de libpq que NO son compatibles con asyncpg
+            libpq_only_params = {
+                "sslmode", "channel_binding", "statement_cache_size", 
+                "application_name", "keepalives", "keepalives_idle",
+                "options", "replication", "fallback_application_name"
+            }
+            clean_params = [
+                p for p in params 
+                if not any(p.startswith(f"{param}=") for param in libpq_only_params)
+            ]
             url = f"{base}?{'&'.join(clean_params)}" if clean_params else base
             
         return url
