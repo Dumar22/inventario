@@ -3,10 +3,10 @@ services:
     name: inventario-asamblea
     runtime: python
     buildCommand: pip install -r requirements.txt
-    preStartCommand: python3 run_migration.py && python3 load_seed_data.py
+    preStartCommand: python3 run_migration.py && python3 load_to_neon.py
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: DATABASE_URL
+      - key: DATABASE_URL_PROD
         sync: false
       - key: CLOUDINARY_CLOUD_NAME
         sync: false

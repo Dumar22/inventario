@@ -63,6 +63,15 @@ function poblarSelects() {
     acc.disabled = true;
   }
 
+  // Selector grupo actual (precargado al seleccionar activo)
+  const ga = document.getElementById("grupo_actual");
+  if (ga && catalogos.grupos_homogeneos) {
+    ga.innerHTML = '<option value="">-- Sin grupo --</option>';
+    catalogos.grupos_homogeneos.forEach((g) => {
+      ga.innerHTML += `<option value="${g.id}">${g.nombre}</option>`;
+    });
+  }
+
   // Selector para cambiar grupo
   const gc = document.getElementById("grupo_cambio");
   if (gc && catalogos.grupos_homogeneos) {

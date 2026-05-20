@@ -7,6 +7,7 @@ venv/
 dist/
 build/
 pgdata/
-*.xls
-*.xlsx
 Zone.Identifier
+# ✅ Permitir archivos de datos (Excel con activos)
+!Anexo\ A.\ ACTIVOS\ 2026.xls
+!Programacion\ Matriz\ Inventario\ Fisico\ Bienes\ Asamblea\ Caldas\ \(2\).xlsx

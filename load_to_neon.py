@@ -213,11 +213,15 @@ async def cargar_activos_desde_excel(db_session, filepath: str):
 
 
 async def main():
-    if len(sys.argv) < 2:
-        print("❌ Uso: python3 load_to_neon.py 'postgresql://user:pass@host/db'")
+    # Intentar obtener URL de env var (para Render) o de argumentos (para uso local)
+    neon_url = os.getenv("DATABASE_URL_PROD") or (sys.argv[1] if len(sys.argv) > 1 else None)
+    
+    if not neon_url:
+        print("❌ Error: Proporciona URL o define DATABASE_URL_PROD")
+        print("   Uso: python3 load_to_neon.py 'postgresql://user:pass@host/db'")
+        print("   O: export DATABASE_URL_PROD='...' && python3 load_to_neon.py")
         sys.exit(1)
     
-    neon_url = sys.argv[1]
     clean_url = sanitize_db_url(neon_url)
     
     print("=" * 70)

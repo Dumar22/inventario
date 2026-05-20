@@ -317,6 +317,8 @@ textarea.form-control {
 }
 .btn-success { background: var(--success); color: white; }
 .btn-success:hover { background: #047857; }
+.btn-warning { background: var(--warning); color: white; }
+.btn-warning:hover { background: #b45309; }
 .btn-outline {
     background: white;
     color: var(--gray-600);
@@ -736,6 +738,7 @@ textarea.form-control {
 .td-right {
     text-align: right !important;
 }
+.td-foto {
     font-size: 0.78rem;
 }
 .td-foto img {
