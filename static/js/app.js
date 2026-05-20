@@ -263,7 +263,18 @@ function mostrarInfoActivo() {
 function llenarFormulario() {
   // Cargar grupo actual del activo
   if (activoActual.grupo_homogeneo_id) {
-    setVal("grupo_actual", activoActual.grupo_homogeneo_id);
+    const ga = document.getElementById("grupo_actual");
+    if (ga) {
+      const exists = Array.from(ga.options).some(o => o.value === String(activoActual.grupo_homogeneo_id));
+      if (!exists) {
+        // Si el select no contiene el grupo (precarga fallida), lo agregamos dinámicamente
+        const opt = document.createElement('option');
+        opt.value = String(activoActual.grupo_homogeneo_id);
+        opt.textContent = activoActual.grupo_nombre || `Grupo ${activoActual.grupo_homogeneo_id}`;
+        ga.appendChild(opt);
+      }
+      setVal("grupo_actual", activoActual.grupo_homogeneo_id);
+    }
   }
 
   // Prellenar costo y vida útil del activo (Excel)
@@ -398,7 +409,16 @@ async function guardarRegistro() {
   const estadoFisico = getVal("estado_fisico");
   if (estadoFisico) form.append("estado_fisico", estadoFisico);
   
-  form.append("existe_fisicamente", document.getElementById("existe_fisicamente")?.checked ? "true" : "false");
+  // Solo enviar existe_fisicamente cuando es relevante:
+  // - Si ya existe un registro, siempre enviamos el estado (permite desmarcar).
+  // - Si es un registro nuevo, enviamos solo si está marcado para evitar sobrescribir con 'false' por defecto.
+  const existeCheckbox = document.getElementById("existe_fisicamente");
+  const existeChecked = !!(existeCheckbox && existeCheckbox.checked);
+  if (registroActual) {
+    form.append("existe_fisicamente", existeChecked ? "true" : "false");
+  } else if (existeChecked) {
+    form.append("existe_fisicamente", "true");
+  }
 
   const costoVal = getVal("costo_verificado");
   const vuVal = getVal("vida_util_verificada");

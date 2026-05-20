@@ -74,6 +74,18 @@ def _calcular_accion_requerida(activo: Activo, registro: RegistroInventario) -> 
     return None, None
 
 
+def _to_naive(dt):
+    """Convierte un datetime timezone-aware a naive en UTC. Si ya es naive, lo devuelve."""
+    if dt is None:
+        return None
+    try:
+        if dt.tzinfo is not None:
+            return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    except Exception:
+        pass
+    return dt
+
+
 @app.on_event("startup")
 async def startup():
     settings = get_settings()
@@ -359,6 +371,11 @@ async def crear_o_actualizar_registro(
             # NOTA: Los valores iniciales no existirán, así que no habrá diferencias aún
             db.add(registro)
 
+        # Convertir datetimes timezone-aware a naive UTC antes de commit (previene errores de driver)
+        registro.fecha_verificacion = _to_naive(getattr(registro, 'fecha_verificacion', None))
+        registro.created_at = _to_naive(getattr(registro, 'created_at', None))
+        registro.updated_at = _to_naive(getattr(registro, 'updated_at', None))
+
         await db.commit()
         await db.refresh(registro)
         return RegistroInventarioResponse.model_validate(registro)
@@ -564,6 +581,8 @@ async def cambiar_grupo(
         # Cambiar el grupo del activo
         activo.grupo_homogeneo_id = grupo_homogeneo_id
 
+        # Asegurar fecha naive antes de commit
+        historial.fecha_cambio = _to_naive(getattr(historial, 'fecha_cambio', None))
         await db.commit()
 
         # Retornar el grupo anterior y nuevo
@@ -580,7 +599,7 @@ async def cambiar_grupo(
             "grupo_nuevo_id": grupo_homogeneo_id,
             "grupo_nuevo_nombre": nuevo_grupo.nombre,
             "razon_cambio": razon_cambio,
-            "fecha_cambio": datetime.now(timezone.utc).replace(tzinfo=None),
+            "fecha_cambio": _to_naive(datetime.now(timezone.utc).replace(tzinfo=None)),
         }
 
     except HTTPException:
