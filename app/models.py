@@ -20,8 +20,8 @@ class GrupoHomogeneo(Base):
     descripcion = Column(Text, nullable=True)
 
     activos = relationship("Activo", back_populates="grupo_homogeneo")
-    historial_grupos = relationship("HistorialCambioGrupo", back_populates="grupo_anterior")
-    historial_grupos_nuevo = relationship("HistorialCambioGrupo", back_populates="grupo_nuevo")
+    historial_grupos = relationship("HistorialCambioGrupo", foreign_keys="HistorialCambioGrupo.grupo_anterior_id", back_populates="grupo_anterior")
+    historial_grupos_nuevo = relationship("HistorialCambioGrupo", foreign_keys="HistorialCambioGrupo.grupo_nuevo_id", back_populates="grupo_nuevo")
 
 
 class Dependencia(Base):
