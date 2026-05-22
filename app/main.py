@@ -480,6 +480,7 @@ async def exportar_matriz_inventario(db: AsyncSession = Depends(get_db)):
         "Estado avance",
         "Verificado por",
         "Fecha verificacion",
+        "Foto URL",
         "Observaciones",
     ]
     ws.append(headers)
@@ -509,6 +510,7 @@ async def exportar_matriz_inventario(db: AsyncSession = Depends(get_db)):
             registro.estado_avance if registro else None,
             registro.verificado_por if registro else None,
             fecha_verificacion,
+            registro.foto_url if registro else None,
             registro.observaciones if registro else None,
         ])
 
