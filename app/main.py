@@ -3,11 +3,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.requests import Request
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, case
 from sqlalchemy.orm import joinedload
 from typing import Optional
 from datetime import datetime, timezone
+from io import BytesIO
+from openpyxl import Workbook
 import json
 import logging
 
@@ -437,6 +440,88 @@ async def get_dashboard(db: AsyncSession = Depends(get_db)):
         por_estado_fisico=por_estado,
         por_grupo=por_grupo,
         por_estado_avance=por_avance,
+    )
+
+
+@app.get("/api/export/matriz-inventario")
+async def exportar_matriz_inventario(db: AsyncSession = Depends(get_db)):
+    """Descarga la matriz completa de inventario en formato Excel."""
+    stmt = (
+        select(Activo, RegistroInventario, GrupoHomogeneo, Dependencia)
+        .outerjoin(RegistroInventario, RegistroInventario.activo_id == Activo.id)
+        .outerjoin(GrupoHomogeneo, GrupoHomogeneo.id == Activo.grupo_homogeneo_id)
+        .outerjoin(Dependencia, Dependencia.id == Activo.dependencia_id)
+        .order_by(Activo.codigo)
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Matriz Inventario"
+
+    headers = [
+        "Codigo",
+        "Codigo alterno",
+        "Placa serial",
+        "Nombre",
+        "Grupo",
+        "Dependencia",
+        "Proveedor",
+        "Costo historico",
+        "Vida util meses",
+        "Ubicacion",
+        "Estado fisico",
+        "Existe fisicamente",
+        "Costo verificado",
+        "Vida util verificada",
+        "Accion requerida",
+        "Motivo accion",
+        "Estado avance",
+        "Verificado por",
+        "Fecha verificacion",
+        "Observaciones",
+    ]
+    ws.append(headers)
+
+    for activo, registro, grupo, dependencia in rows:
+        fecha_verificacion = None
+        if registro and registro.fecha_verificacion:
+            fecha_verificacion = registro.fecha_verificacion.strftime("%Y-%m-%d %H:%M:%S")
+
+        ws.append([
+            activo.codigo,
+            activo.codigo_alterno,
+            activo.placa_serial,
+            activo.nombre,
+            grupo.nombre if grupo else None,
+            dependencia.nombre if dependencia else None,
+            activo.proveedor,
+            activo.costo_historico,
+            activo.vida_util_meses,
+            activo.ubicacion,
+            registro.estado_fisico if registro else None,
+            "Si" if registro and registro.existe_fisicamente is True else ("No" if registro and registro.existe_fisicamente is False else None),
+            registro.costo_verificado if registro else None,
+            registro.vida_util_verificada if registro else None,
+            registro.accion_requerida if registro else None,
+            registro.motivo_accion if registro else None,
+            registro.estado_avance if registro else None,
+            registro.verificado_por if registro else None,
+            fecha_verificacion,
+            registro.observaciones if registro else None,
+        ])
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    filename = f"matriz_inventario_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    headers_resp = {"Content-Disposition": f"attachment; filename={filename}"}
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=headers_resp,
     )
 
 

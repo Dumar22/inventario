@@ -22,6 +22,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (btnNuevo) {
     btnNuevo.addEventListener("click", nuevoElementoInventario);
   }
+
+  const btnDescargar = document.getElementById("btn-descargar-matriz");
+  if (btnDescargar) {
+    btnDescargar.addEventListener("click", descargarMatrizInventario);
+  }
 });
 
 // === CATALOGOS ===
@@ -753,6 +758,11 @@ async function nuevoElementoInventario() {
   toast("Funcionalidad de crear nuevo elemento próximamente disponible", "info");
   // Aqui iria la lógica para crear un nuevo elemento
   // Por ahora, solo mostramos un mensaje informativo
+}
+
+function descargarMatrizInventario() {
+  const url = `${API}/api/export/matriz-inventario`;
+  window.open(url, "_blank");
 }
 
 function formatNumber(n) {
