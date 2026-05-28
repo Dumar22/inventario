@@ -483,6 +483,7 @@ async def exportar_matriz_inventario(db: AsyncSession = Depends(get_db)):
         "Verificado por",
         "Fecha verificacion",
         "Foto URL",
+        "Foto enlace",
         "Observaciones",
     ]
     ws.append(headers)
@@ -499,6 +500,11 @@ async def exportar_matriz_inventario(db: AsyncSession = Depends(get_db)):
             ubicacion_d_export = registro.ubicacion_verificada or None
         if not responsable_export and dependencia:
             responsable_export = dependencia.responsable
+
+        foto_url_export = registro.foto_url if registro else None
+        foto_link_export = None
+        if foto_url_export:
+            foto_link_export = f'=HYPERLINK("{foto_url_export}","Ver foto")'
 
         ws.append([
             activo.codigo,
@@ -522,7 +528,8 @@ async def exportar_matriz_inventario(db: AsyncSession = Depends(get_db)):
             registro.estado_avance if registro else None,
             registro.verificado_por if registro else None,
             fecha_verificacion,
-            registro.foto_url if registro else None,
+            foto_url_export,
+            foto_link_export,
             registro.observaciones if registro else None,
         ])
 
