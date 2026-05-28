@@ -1,12 +1,12 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
-import os
 
 
 class Settings(BaseSettings):
     # En producción (Render): usa DATABASE_URL_PROD
     # En desarrollo: usa DATABASE_URL
     database_url: str = "postgresql+asyncpg://inventario:inventario_2026@localhost:5432/inventario_asamblea"
+    database_url_prod: str = ""
 
     # Cloudinary
     cloudinary_cloud_name: str = ""
@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     @property
     def database_url_async(self) -> str:
         """Convierte postgresql:// en postgresql+asyncpg:// y limpia parámetros incompatibles con asyncpg."""
-        url = os.getenv("DATABASE_URL_PROD") or os.getenv("DATABASE_URL") or self.database_url
+        url = self.database_url_prod or self.database_url
         if not url:
             return ""
             

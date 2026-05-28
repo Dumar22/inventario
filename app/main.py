@@ -467,10 +467,12 @@ async def exportar_matriz_inventario(db: AsyncSession = Depends(get_db)):
         "Nombre",
         "Grupo",
         "Dependencia",
+        "Responsable",
         "Proveedor",
         "Costo historico",
         "Vida util meses",
         "Ubicacion",
+        "Ubicacion D",
         "Estado fisico",
         "Existe fisicamente",
         "Costo verificado",
@@ -490,6 +492,14 @@ async def exportar_matriz_inventario(db: AsyncSession = Depends(get_db)):
         if registro and registro.fecha_verificacion:
             fecha_verificacion = registro.fecha_verificacion.strftime("%Y-%m-%d %H:%M:%S")
 
+        responsable_export = None
+        ubicacion_d_export = None
+        if registro:
+            responsable_export = registro.custodio_responsable or None
+            ubicacion_d_export = registro.ubicacion_verificada or None
+        if not responsable_export and dependencia:
+            responsable_export = dependencia.responsable
+
         ws.append([
             activo.codigo,
             activo.codigo_alterno,
@@ -497,10 +507,12 @@ async def exportar_matriz_inventario(db: AsyncSession = Depends(get_db)):
             activo.nombre,
             grupo.nombre if grupo else None,
             dependencia.nombre if dependencia else None,
+            responsable_export,
             activo.proveedor,
             activo.costo_historico,
             activo.vida_util_meses,
             activo.ubicacion,
+            ubicacion_d_export,
             registro.estado_fisico if registro else None,
             "Si" if registro and registro.existe_fisicamente is True else ("No" if registro and registro.existe_fisicamente is False else None),
             registro.costo_verificado if registro else None,
